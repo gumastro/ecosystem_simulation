@@ -9,6 +9,7 @@ public class Ecosystem : MonoBehaviour
 	public GameObject fox;
     public GameObject food;
 	public GameObject item;
+    public Transform bestSubject;
 
     // INFO
     public GameObject infoScreen;
@@ -25,6 +26,7 @@ public class Ecosystem : MonoBehaviour
     public float initRabbit;
 	public float initFox;
     public float initFood;
+    public float bestTimeAlive = 0;
 
     // Start is called before the first frame update
     void Start()
@@ -44,7 +46,7 @@ public class Ecosystem : MonoBehaviour
             GameObject _item = Instantiate(item, Vector3.zero, Quaternion.identity, scrollViewRabbit);
             Color color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f);
 
-            subject.GetComponent<Rabbit>().SetChromosome(Random.Range(1f, 6f), Random.Range(5f, 30f), _item, 1, color);
+            subject.GetComponent<Rabbit>().SetChromosome(Random.Range(1f, 6f), Random.Range(5f, 30f), _item, 1, color, Random.Range(1f, 20f), Random.Range(1f, 70f), Random.Range(1f, 10f));
         }
 
 		// INITIAL RANDOM FOX SPECIMENS
@@ -55,7 +57,7 @@ public class Ecosystem : MonoBehaviour
 			GameObject _item = Instantiate(item, Vector3.zero, Quaternion.identity, scrollViewFox);
 			Color color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f);
 
-			subject.GetComponent<Rabbit>().SetChromosome(Random.Range(1f, 6f), Random.Range(5f, 30f), _item, 1, color);
+			subject.GetComponent<Rabbit>().SetChromosome(Random.Range(1f, 6f), Random.Range(5f, 30f), _item, 1, color, Random.Range(1f, 20f), Random.Range(1f, 70f), Random.Range(1f, 10f));
 		}
 
         // INITIAL FOOD
@@ -97,6 +99,12 @@ public class Ecosystem : MonoBehaviour
                 childs[i] = originalGameObject.transform.GetChild(i).gameObject;
                 avg_speed += childs[i].GetComponent<Rabbit>().GetSpeed();
                 avg_vision += childs[i].GetComponent<Rabbit>().GetVision();
+
+                if (childs[i].GetComponent<Rabbit>().lifeTime > bestTimeAlive)
+                {
+                    bestSubject = childs[i].GetComponent<Rabbit>().transform;
+                    bestTimeAlive = childs[i].GetComponent<Rabbit>().lifeTime;
+                }
             }
             avg_speed /= originalGameObject.transform.childCount;
             avg_vision /= originalGameObject.transform.childCount;
@@ -104,8 +112,20 @@ public class Ecosystem : MonoBehaviour
             infoScreen.GetComponentInChildren<Text>().text += "Nº of rabbits: " + originalGameObject.transform.childCount + "\n";
             infoScreen.GetComponentInChildren<Text>().text += "Avg speed: " + avg_speed + "\n";
             infoScreen.GetComponentInChildren<Text>().text += "Avg vision: " + avg_vision + "\n";
+			infoScreen.GetComponentInChildren<Text>().text += "Best Time: " + bestTimeAlive + "\n";
 
             yield return new WaitForSeconds(infoDelay);
+        }
+    }
+
+    public void ToggleStats() 
+    {
+        childs = new GameObject[originalGameObject.transform.childCount];
+
+		for (int i = 0; i < childs.Length; i++)
+		{
+			childs[i] = originalGameObject.transform.GetChild(i).gameObject;
+            childs[i].transform.Find("Canvas").gameObject.SetActive(!childs[i].transform.Find("Canvas").gameObject.activeSelf);
         }
     }
 }

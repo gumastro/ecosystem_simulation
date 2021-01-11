@@ -18,15 +18,14 @@ public class Rabbit : MonoBehaviour
 	public Slider displayThirst;
 	public Slider displayLove;
 
+    public float lifeTime;
     public string scrollViewTag;
     public float moveTimeMax;
-    public float hungerPercentage;
     public float foodValue = 100;
 	public float waterValue = 100;
 
-    public float reproductionMult;
-
 	Transform scrollView;
+	Transform graveyard;
     Transform food;
 	Transform water;
 	Transform predator;
@@ -41,6 +40,9 @@ public class Rabbit : MonoBehaviour
 	float thirst = 0;
 	float love = 0;
     float moveTime;
+    float reproductionMult;
+    float hungerPercentage;
+    float needEscape;
 
     void Awake()
     {
@@ -48,6 +50,7 @@ public class Rabbit : MonoBehaviour
 		col = GetComponentInChildren<SphereCollider>();
 
         scrollView = GameObject.FindGameObjectWithTag(scrollViewTag).transform;
+		graveyard = GameObject.FindGameObjectWithTag("Graveyard").transform;
 
 		direction = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
     }
@@ -61,6 +64,8 @@ public class Rabbit : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        lifeTime += Time.deltaTime;
+
         // SET RANDOM DIRECTIONS 
         moveTime += Time.deltaTime;
 
@@ -84,7 +89,7 @@ public class Rabbit : MonoBehaviour
 		displayThirst.value = thirst;
 		displayLove.value = love;
 
-        Death();
+        Death(false);
     }
 
     void SetStatus()
@@ -115,7 +120,6 @@ public class Rabbit : MonoBehaviour
         }
         else if (status == Status.Escape && predator)
         {
-            print("a");
 			direction = transform.position - predator.position;
             agent.SetDestination(transform.position + direction);   
         }
@@ -131,6 +135,8 @@ public class Rabbit : MonoBehaviour
         if (Vector3.Distance(transform.position, food.position) <= 3f) 
         {            
             hunger = Mathf.Max(0, hunger - foodValue);
+
+            if (food.GetComponent<Rabbit>() != null) food.GetComponent<Rabbit>().Death(true);
 
             Destroy(food.gameObject);
             food = null;
@@ -163,23 +169,31 @@ public class Rabbit : MonoBehaviour
             // CREATE CHILD WITH 50/50 CHROMOSOMES (DAD/MOM) + MUTATION
             float childSpeed = ((agent.speed + partner.GetSpeed()) / 2f) + Random.Range(-1f, 1f);
 			float childVision = ((col.radius + partner.GetVision()) / 2f) + Random.Range(-3f, 3f);
+			float reproductionLevel = ((reproductionMult + partner.GetReproduction()) / 2f) + Random.Range(-3f, 3f);
+			float hungerLevel = ((hungerPercentage + partner.GetHungerLevel()) / 2f) + Random.Range(-10f, 10f);
+			float escapeLevel = ((needEscape + partner.GetEscapeLevel()) / 2f) + Random.Range(-3f, 3f);
 
 			GameObject _item = Instantiate(itemPrefab, Vector3.zero, Quaternion.identity, scrollView);
             Color color = new Color((GetColor().r + partner.GetColor().r) / 2, (GetColor().g + partner.GetColor().g) / 2f, (GetColor().b + partner.GetColor().b) / 2f, 1);
 
-			children.GetComponent<Rabbit>().SetChromosome(childSpeed, childVision, _item, Mathf.Max(int.Parse(transform.name), int.Parse(partner.transform.name)) + 1, color);
+			children.GetComponent<Rabbit>().SetChromosome(childSpeed, 
+                                                        childVision, 
+                                                        _item, 
+                                                        Mathf.Max(int.Parse(transform.name), 
+                                                        int.Parse(partner.transform.name)) + 1, color, reproductionLevel, hungerLevel, escapeLevel);
 
 			partner = null;
 			status = Status.Idle;
 		}
     }
 
-    void Death()
+    public void Death(bool eaten)
     {
-        if (hunger >= 100 || thirst >= 100) 
+        if (hunger >= 100 || thirst >= 100 || eaten) 
         {
             Destroy(item);
-            Destroy(gameObject);
+            gameObject.SetActive(false);
+            transform.SetParent(graveyard);
         }
     }
 
@@ -227,15 +241,22 @@ public class Rabbit : MonoBehaviour
 
     public void Escape(Transform predator)
     {
-        status = Status.Escape;
-        this.predator = predator;
+        if (Vector3.Distance(transform.position, predator.position) <= needEscape)
+        {
+            status = Status.Escape;
+            this.predator = predator;
+        }
     }
 
-    public void SetChromosome(float speed, float vision, GameObject item, int generation, Color color)
+    public void SetChromosome(float speed, float vision, GameObject item, int generation, Color color, float reproductionMult, float hungerPercentage, float escapeLevel)
     {
+        transform.name = "" + generation;
+        
         agent.speed = speed;
 		col.radius = vision;
-        transform.name = "" + generation;
+        this.reproductionMult = reproductionMult;
+        this.hungerPercentage = hungerPercentage;
+		needEscape = escapeLevel;
 
 		GetComponent<Renderer>().material.color = color;
 
@@ -253,5 +274,8 @@ public class Rabbit : MonoBehaviour
 	public float GetHunger() { return hunger; }
 	public float GetThrist() { return thirst; }
 	public float GetLove() { return love; }
+	public float GetReproduction() { return reproductionMult; }
+	public float GetHungerLevel() { return hungerPercentage; }
+	public float GetEscapeLevel() { return needEscape; }
 	public void SetLove(float value) { this.love = value; }
 }
